@@ -1,0 +1,98 @@
+function SSA_1()
+clear all;close all;
+to = 0; %starttime
+tf = 10; %endtime
+t = linspace(to,tf,400);
+xo(1) = 0; %initialcondition
+xo(2) = 0;
+xo(3) = 0;
+xo(4) = 0;
+
+%Variables 
+ a=0.03;
+
+global fileID = fopen('SSA_1.txt','w')
+status = is_valid_file_id (fileID)
+freport()
+%fileID 
+options1 = odeset('RelTol',0.01);
+[t,x] = ode23(@(t,x)nonlinear(t,x),t,xo,options1);
+%[T,Y]=ode45(@(t,y)test(t,y,b),tspan,y0);%Onecommaremoved
+fclose(fileID);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+
+for i=1:length(t)
+  if t(i)>=0
+z1_r(i)=0.05;
+else
+z1_r(i)=0;
+end
+if t(i)>=0.5 && t(i)<=0.75
+  z2_r(i)=a*(1-cos(8*pi*t(i)));
+elseif t(i)>=5 && t(i)<=5.25
+  z2_r(i)=-a*(1-cos(8*pi*t(i)));
+else
+  z2_r(i)=0;
+end
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+%%%%%%%%%%%%%%%%% GRAFICAS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5%%
+hold on
+plot(t,z2_r)
+plot(t,x(:,1))
+plot(t,x(:,1)-x(:,3))
+%plot(x(:,1),x(:,2))
+%plot(t,u,'y')
+legend('Z_r','Posicion chasis','Deflexion');
+xlabel('Time(s)')
+ylabel('Amplitude')
+grid
+axis([to tf -4*a 5*a])
+title('Respuesta a las perturbaciones')
+
+
+function [xdot] = nonlinear(t,x)
+%nonlinear model to integrate
+%parametros
+global fileID
+
+%c=1+1*rand;
+%c=1;
+%PARAMETROS:
+ms=300;
+mu=50;
+ks=16000;
+kt=19000;
+cs=1000;
+
+A=[0 1 0 0;-(ks/ms) -(cs/ms) (ks/ms) (cs/ms) ;0 0 0 1;
+(ks/mu) (cs/mu) -((kt+ks)/mu) -(cs/mu)];
+B=[0 0;0 1/ms;0 0;kt/mu -1/mu];
+Bn=[0; 1/ms;0;-1/mu];
+Dn=[0;0;1/ms];
+%Q=[1000 0 0 0;0 1000 0 0;0 0 1000 0; 0 0 0 1000];
+Q=[1000 0 0 0;0 1000 0 0;0 0 1000 0; 0 0 0 1000];
+R=[0.0001];
+[K,P,E]=lqr(A,Bn,Q,R);
+
+%zr=0.05;
+a=0.03;
+if t>=0.5 && t<=0.75
+  zr=a*(1-cos(8*pi*t));
+elseif t>=5 && t<=5.25
+  zr=-a*(1-cos(8*pi*t));
+else
+  zr=0;
+end
+
+
+%u=0;
+u=-K*[x(1);x(2);x(3);x(4)];
+%u=-(1.5*x(2)^2*cos(3*x(1)))+xd2-lambda*(x(2)-xd1)-k*sign(s);
+xdot=[x(2);-(ks/ms)*x(1)-(cs/ms)*x(2)+(ks/ms)*x(3)+(cs/ms)*x(4)+(1/ms)*u;x(4);(ks/mu)*x(1)+(cs/mu)*x(2)-((kt+ks)/mu)*x(3)-(cs/mu)*x(4)+(kt/mu)*zr-(1/mu)*u];
+
+fprintf(fileID,'%10.6f %10.6f %10.6f %10.6f %10.6f %10.6f %10.6f \n',t,u,zr,x(1),x(2),x(3),x(4));
